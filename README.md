@@ -1,25 +1,38 @@
-# Chalo
+# Chalo (working title)
 
-> "Ride Together" — group riding companion app for the Indian biking community.
+> "Ride Together" - a group riding companion app for India's biking community.
 
-Flutter mobile app (`app/`) with a planned Node.js backend (`backend/`). Full product/technical context lives in `docs/` — start there, not here.
+Group rides fall apart mid-route because riders have no safe way to stay connected once they're moving. Phone calls while riding are illegal under the Motor Vehicles Act, and genuinely dangerous even when they're not. Chalo solves this with a private, real-time mode for riding with friends and a verified mode for discovering rides with strangers.
+
+Built solo, end to end: product decisions, all 27 screens, and the app itself.
+
+## What's actually built
+
+- **All 27 screens** built and wired in Flutter, for iOS and Android, not just designs
+- **Google Maps** working end to end on both platforms - real tiles, routes, live location
+- **Push-to-talk (Agora)** really integrated into the live ride screen, not mocked. Audio itself still needs a physical phone to verify, since simulators can't run real-time audio
+- **Backend** (Node.js/Express) with real-time party updates and live location tracking in progress
+
+Full write-up, screenshots, and an honest status breakdown: [read the case study](https://shauryagarwal28.github.io/chalo-case-study.html)
+
+## Two modes
+
+- **Active Ride Mode** - a private group of friends riding together right now. No sign-up friction. Live map, one-button push-to-talk, automatic emergency detection if someone stops suddenly.
+- **Community Mode** - discover public rides organised by verified strangers. Gated behind KYC and a mutual rating system, since this side needs trust that Active Ride Mode doesn't.
 
 ## Repo layout
 
 ```
-app/      Flutter client (Android + iOS) — see app/README.md for setup
-backend/  Node.js/Express API (not yet started) — see backend/README.md
-docs/     Single source of truth for product, technical, and design decisions
-.claude/  Claude Code subagent definitions (pm, senior-engineer, junior-engineer)
+app/      Flutter client (Android + iOS)
+backend/  Node.js/Express API - real-time party and location features
 ```
 
-## Where to start
+This is a code snapshot, refreshed from the working repo. It won't run without your own Google Maps and Agora accounts (see `app/README.md` for setup), but it's real, current code.
 
-- **New to the project?** Read `docs/README.md` first — it's the knowledge base index (what Chalo is, current build status, key decisions, directory map).
-- **Setting up the app?** `app/README.md`.
-- **Working on the backend?** `backend/README.md`.
-- **Picking up mid-project?** `docs/process/build-status.md` for current state, `docs/process/working-agreements.md` for how this repo is built and its session log.
+## Stack
 
-## Working with Claude Code on this repo
+Flutter · Node.js/Express · Google Maps SDK · Agora (push-to-talk)
 
-See `CLAUDE.md` — it points a fresh session at the right docs and explains the PM/senior-engineer/junior-engineer subagent setup in `.claude/agents/`.
+## Author
+
+Shaurya Agarwal - [portfolio](https://shauryagarwal28.github.io) · [LinkedIn](https://www.linkedin.com/in/shauryaagarwal28/)
