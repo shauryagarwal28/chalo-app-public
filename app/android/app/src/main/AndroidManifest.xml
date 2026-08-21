@@ -1,0 +1,90 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.BLUETOOTH"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <!-- Live-location sharing on S9's map during an active ride, per
+         technical/systems/real-time-location.md. Foreground permissions are
+         requested first, then ACCESS_BACKGROUND_LOCATION is requested
+         separately (Android's own rule — bundling both in one runtime
+         request on Android 11+ causes the system to silently deny the
+         background grant), see live_ride_screen.dart's _initLocation.
+         Background delivery itself is carried primarily by the foreground
+         service below (Google's recommended pattern for continuous-tracking
+         apps — a running foreground service is exempt from Android's
+         background location limits without needing
+         ACCESS_BACKGROUND_LOCATION at all), not by this permission alone;
+         it's requested anyway since it was explicitly asked for and adds
+         resilience on OEMs with aggressive battery managers. Flagged for
+         the PM in build-status.md: shipping ACCESS_BACKGROUND_LOCATION to
+         the Play Store requires a background-location permission
+         declaration (with justification) in Play Console review — a
+         compliance step, not something decided here. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+    <!-- Foreground service + its Android 8+ persistent notification, so
+         location updates continue while the app is backgrounded/screen
+         locked during an active ride (geolocator_android's own
+         GeolocatorLocationService, started via the
+         AndroidSettings.foregroundNotificationConfig passed from
+         live_ride_screen.dart — see that file). FOREGROUND_SERVICE_LOCATION
+         is the Android 14+ service-type permission required alongside the
+         base FOREGROUND_SERVICE permission; POST_NOTIFICATIONS (Android
+         13+) is required at runtime for the persistent notification itself
+         to actually display. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Battery optimisation exemption, requested (best-effort, non-blocking)
+         at first launch of an active ride per real-time-location.md's
+         Battery Optimisation Strategy table. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <application
+        android:label="chalo"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${mapsApiKey}" />
+    </application>
+    <!-- Required to query activities that can process text, see:
+         https://developer.android.com/training/package-visibility and
+         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
+</manifest>

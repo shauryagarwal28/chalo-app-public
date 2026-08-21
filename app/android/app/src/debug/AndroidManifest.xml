@@ -1,0 +1,16 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The INTERNET permission is required for development. Specifically,
+         the Flutter tool needs it to communicate with the running application
+         to allow setting breakpoints, to provide hot reload, etc.
+    -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Debug-build-only: Android 9+ blocks cleartext (plain http/ws)
+         traffic by default. The local dev backend
+         (backend/docker-compose.yml) has no TLS — it's not meant to, it's a
+         throwaway local container — so debug/profile builds need this to
+         reach it via 10.0.2.2:3000 (see lib/config/app_config.dart). NOT
+         added to the main/release manifest — a real deployed backend would
+         use TLS (wss/https), and a release build shouldn't silently allow
+         cleartext to anything. -->
+    <application android:usesCleartextTraffic="true"/>
+</manifest>

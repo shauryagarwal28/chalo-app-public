@@ -1,0 +1,31 @@
+# Local dev loop only — not a hosting/deployment decision.
+# See docs/technical/architecture/backend-mvp-plan.md §5 for the hosting plan.
+#
+# Redis is consumed from Task 2 onward (OTP storage, refresh-token tracking,
+# user records). JWT_SECRET here is a fixed local-dev-only value (not a real
+# secret, fine to keep in this file since it's meaningless outside a
+# throwaway local container) — production would inject a real one via actual
+# environment/secrets management, never this file.
+
+services:
+  app:
+    build: .
+    ports:
+      - '${PORT:-3000}:3000'
+    environment:
+      - PORT=3000
+      - NODE_ENV=development
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=local-dev-only-jwt-secret-do-not-use-in-production
+    volumes:
+      - ./src:/app/src
+      - ./package.json:/app/package.json
+      - ./tsconfig.json:/app/tsconfig.json
+      - /app/node_modules
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'

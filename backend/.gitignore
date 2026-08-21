@@ -1,0 +1,12 @@
+# Secrets — never commit a real .env, same discipline as app/'s gitignored Secrets.xcconfig/agora_config.dart
+.env
+.env.local
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# OS / editor
+.DS_Store

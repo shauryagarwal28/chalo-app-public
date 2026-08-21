@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>GMSApiKey</key>
+	<string>$(MAPS_API_KEY)</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Chalo uses your microphone for push-to-talk voice with your riding party.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Chalo shares your live location with your riding party during an active ride.</string>
+	<!-- "Always" is requested as a second, separate step after "When In Use"
+	     is already granted (Apple's own recommended escalation flow — see
+	     live_ride_screen.dart's _initLocation), so the party's map keeps
+	     updating riders' positions while the app is backgrounded/the phone
+	     is locked during an active ride. NSLocationAlwaysAndWhenInUseUsageDescription
+	     is the combined iOS 11+ key; geolocator_apple's own permission
+	     request logic only ever calls requestWhenInUseAuthorization while
+	     this key's sibling, NSLocationWhenInUseUsageDescription, is also
+	     present (confirmed by reading PermissionHandler.m) — the "Always"
+	     upgrade is requested via permission_handler's Permission.locationAlways
+	     instead, which implements the correct two-step escalation on both
+	     platforms (see the Podfile's PERMISSION_LOCATION macro below, first
+	     real use of that mechanism in this project). -->
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Chalo shares your live location with your riding party, including while your phone is locked, during an active ride.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>location</string>
+	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<!-- Dev-only: allows plain http/ws to local-network addresses
+		     (localhost/127.0.0.1/*.local), so the app can reach the local
+		     dev backend (backend/docker-compose.yml, no TLS — see
+		     lib/config/app_config.dart) on the iOS Simulator. This is
+		     Apple's own narrow local-networking exception, NOT
+		     NSAllowsArbitraryLoads — it has no effect on requests to real
+		     internet hosts, so it's safe to leave in place rather than
+		     needing a debug-only Info.plist split. -->
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>CFBundleDisplayName</key>
+	<string>Chalo</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>chalo</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>UIWindowScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>flutter</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+</dict>
+</plist>
