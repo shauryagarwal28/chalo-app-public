@@ -6,6 +6,8 @@ Group rides fall apart mid-route because riders have no safe way to stay connect
 
 Built solo, end to end: product decisions, all 27 screens, and the app itself.
 
+**Live demo**: https://shauryagarwal28.github.io/chalo-app-public/
+
 ## What's actually built
 
 - **All 27 screens** built and wired in Flutter, for iOS and Android, not just designs

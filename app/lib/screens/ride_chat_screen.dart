@@ -1,7 +1,19 @@
 import 'package:flutter/material.dart';
 import '../theme/colors.dart';
 import '../widgets/metallic_card.dart';
+import 'report_incident_screen.dart';
 import 'ride_day_screen.dart';
+
+/// Mock roster for this screen's "Report an Incident" entry point.
+/// `ride_chat_screen.dart` currently carries no real rider/organiser data
+/// (only `rideName` is passed in) and has no concept of which role the
+/// current viewer holds — same mock-data-per-screen convention already
+/// used elsewhere in this build (e.g. `ride_day_screen.dart`'s own
+/// hardcoded `_riders`). The organiser name matches this screen's existing
+/// mock chat sender ("Arjun Mehta"); rider names match `ride_day_screen.dart`'s
+/// mock roster for consistency.
+const String _kMockOrganiserName = 'Arjun Mehta';
+const List<String> _kMockRiderNames = ['Vikram Singh', 'Neha Kapoor', 'Suresh Kumar'];
 
 enum _MessageType { system, organiser, rider, me }
 
@@ -68,6 +80,27 @@ class _RideChatScreenState extends State<RideChatScreen> {
                     child: Text(widget.rideName, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: ChaloColors.textPrimary)),
                   ),
                   const SizedBox(width: 16),
+                  GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ReportIncidentScreen(
+                          rideName: widget.rideName,
+                          riders: _kMockRiderNames,
+                          organiserName: _kMockOrganiserName,
+                        ),
+                      ),
+                    ),
+                    child: MetallicCard(
+                      borderRadius: BorderRadius.circular(12),
+                      child: const SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: Icon(Icons.flag_outlined, color: ChaloColors.textSecondary, size: 18),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
                   GestureDetector(
                     onTap: () => Navigator.push(
                       context,

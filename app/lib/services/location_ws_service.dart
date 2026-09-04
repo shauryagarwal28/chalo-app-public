@@ -180,6 +180,14 @@ class LocationWsService {
   StreamSubscription? _subscription;
   bool _connected = false;
 
+  /// Web-only demo swap: drives a small, fixed sequence of fake
+  /// `party:member_joined`/`location:broadcast` events instead of a real
+  /// socket — see [connect]'s `kIsWeb` branch and
+  /// `services/mock_backend.dart`'s file-level doc comment for why (no
+  /// publicly reachable backend for a GitHub Pages link to call). Never
+  /// created on iOS/Android.
+  Timer? _demoTimer;
+
   /// userId -> that rider's latest known position. Never includes this
   /// device's own userId — the server never echoes a sender's own
   /// `location:update` back to them (confirmed live, Task 6 senior review),
@@ -258,6 +266,12 @@ class LocationWsService {
   /// honestly rather than claimed as fully eliminated.
   Future<void> connect(String accessToken) async {
     if (_connected) return;
+
+    if (kIsWeb) {
+      _connected = true;
+      _startDemoSimulation();
+      return;
+    }
 
     final uri = Uri.parse('${AppConfig.wsBaseUrl}?token=$accessToken');
     try {
@@ -494,7 +508,65 @@ class LocationWsService {
     }
   }
 
+  /// Web-only demo simulation: two other riders (matching
+  /// `MockBackend`'s roster, so names line up with whatever
+  /// `party_ready_screen.dart`/`live_ride_screen.dart` already fetched over
+  /// REST) "join" a couple of seconds apart, then drift along a short fixed
+  /// path near the same Bengaluru coordinates `live_ride_screen.dart`
+  /// already uses for its own fallback camera/route/fuel-stop markers — so
+  /// the demo's second/third rider dot appears near the self marker instead
+  /// of somewhere unrelated on the globe. Every send* method on this class
+  /// is already a no-op when `_channel` is null (see their own doc
+  /// comments), which is true for the whole lifetime of a web demo
+  /// connection, so nothing this simulation "receives" ever needs a
+  /// corresponding real send to have happened.
+  static const _demoOtherRiders = [
+    ('demo-rider-vikram', 'Vikram Singh'),
+    ('demo-rider-neha', 'Neha Kapoor'),
+  ];
+
+  static const _demoPath = [
+    (12.9716, 77.5946),
+    (12.9742, 77.5952),
+    (12.9769, 77.5938),
+    (12.9788, 77.5901),
+    (12.9805, 77.5865),
+    (12.9830, 77.5840),
+    (12.9862, 77.5820),
+  ];
+
+  void _startDemoSimulation() {
+    var tick = 0;
+    // First tick fires almost immediately (short delay, not zero, so this
+    // still reads as "joining" rather than "already there") — subsequent
+    // ticks every 3s, matching live_ride_screen.dart's real location-update
+    // cadence closely enough to look natural.
+    _demoTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      tick++;
+      if (tick == 1 || tick == 2) {
+        final (userId, name) = _demoOtherRiders[tick - 1];
+        final updatedNames = Map<String, String>.from(riderNames.value);
+        updatedNames[userId] = name;
+        riderNames.value = updatedNames;
+      }
+      for (var i = 0; i < _demoOtherRiders.length; i++) {
+        final (userId, _) = _demoOtherRiders[i];
+        final (lat, lng) = _demoPath[(tick + i * 3) % _demoPath.length];
+        final updated = Map<String, RiderLocation>.from(riderLocations.value);
+        updated[userId] = RiderLocation(
+          userId: userId,
+          lat: lat,
+          lng: lng,
+          speedKmph: 28,
+          receivedAt: DateTime.now(),
+        );
+        riderLocations.value = updated;
+      }
+    });
+  }
+
   Future<void> dispose() async {
+    _demoTimer?.cancel();
     await _subscription?.cancel();
     try {
       await _channel?.sink.close();

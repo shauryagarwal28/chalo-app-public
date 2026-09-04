@@ -4,3 +4,4 @@
 node_modules/
 app/ios/Flutter/Secrets.xcconfig
 app/android/local.properties
+app/web/maps_config.js

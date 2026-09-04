@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/colors.dart';
 import '../widgets/metallic_card.dart';
 import 'post_ride_rating_organiser_screen.dart';
+import 'report_incident_screen.dart';
 
 enum _Attendance { pending, present, absent }
 
@@ -55,6 +56,26 @@ class _RideDayScreenState extends State<RideDayScreen> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: Text(widget.rideName, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: ChaloColors.textPrimary)),
+                  ),
+                  const SizedBox(width: 16),
+                  GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ReportIncidentScreen(
+                          rideName: widget.rideName,
+                          riders: _riders.map((r) => r.name).toList(),
+                        ),
+                      ),
+                    ),
+                    child: MetallicCard(
+                      borderRadius: BorderRadius.circular(12),
+                      child: const SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: Icon(Icons.flag_outlined, color: ChaloColors.textSecondary, size: 18),
+                      ),
+                    ),
                   ),
                 ],
               ),

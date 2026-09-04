@@ -34,6 +34,25 @@ class AgoraPttService {
       return;
     }
 
+    // PTT is unvalidated everywhere in this app (see
+    // docs/technical/decisions/ptt-sdk-choice.md — no real highway test has
+    // happened even on iOS/Android). The web platform is a further step
+    // down: agora_rtc_engine's web implementation needs its own Agora Web
+    // SDK <script> tag wired into web/index.html (same shape of problem as
+    // Google Maps' JS API key), which this app deliberately does not do —
+    // adding it would let PTT silently "half-work" in the browser and
+    // misrepresent an unvalidated feature as further along than it is.
+    // Without that script, engine.initialize() throws a raw
+    // "Null check operator used on a null value" from the plugin's JS
+    // interop — technically caught by the try/catch below either way (so
+    // this guard isn't needed to prevent a crash), but this early, explicit
+    // check gives a clear, honest message instead of a confusing runtime
+    // error string, matching the empty-appId guard above.
+    if (kIsWeb) {
+      lastError.value = 'PTT voice chat isn\'t available in this web preview — try the iOS or Android app.';
+      return;
+    }
+
     final engine = createAgoraRtcEngine();
     _engine = engine;
 

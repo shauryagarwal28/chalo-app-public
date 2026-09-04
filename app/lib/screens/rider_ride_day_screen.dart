@@ -3,6 +3,7 @@ import '../theme/colors.dart';
 import '../widgets/metallic_card.dart';
 import 'home_screen.dart';
 import 'post_ride_rating_rider_screen.dart';
+import 'report_incident_screen.dart';
 
 /// The shared reason list for Community Mode's rider-initiated "I'm Not
 /// Coming" control, locked in `product/decisions/12-rider-initiated-leave.md`.
@@ -106,6 +107,27 @@ class _RiderRideDayScreenState extends State<RiderRideDayScreen> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: Text(widget.rideName, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: ChaloColors.textPrimary)),
+                  ),
+                  const SizedBox(width: 16),
+                  GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ReportIncidentScreen(
+                          rideName: widget.rideName,
+                          riders: widget.otherRiders,
+                          organiserName: widget.organiserName,
+                        ),
+                      ),
+                    ),
+                    child: MetallicCard(
+                      borderRadius: BorderRadius.circular(12),
+                      child: const SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: Icon(Icons.flag_outlined, color: ChaloColors.textSecondary, size: 18),
+                      ),
+                    ),
                   ),
                 ],
               ),

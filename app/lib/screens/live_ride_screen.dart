@@ -19,6 +19,8 @@ import 'emergency_stage2_screen.dart';
 import 'emergency_stage3_screen.dart';
 import 'home_screen.dart';
 import 'post_ride_rating_rider_screen.dart';
+import 'report_incident_screen.dart';
+import 'ride_chat_screen.dart';
 
 class LiveRideScreen extends StatefulWidget {
   final String partyId;
@@ -792,6 +794,68 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
     );
   }
 
+  /// Closes the gap flagged (not solved) in
+  /// `product/decisions/13-incident-reporting.md`'s "Where it lives"
+  /// section: once a Community Mode ride goes live, riders land on this
+  /// screen (S9) — which had no chat or incident-report entry point at all.
+  /// Gated on [LiveRideScreen.isCommunityRide] in the party menu below, same
+  /// pattern as `_leaveParty`'s branching — Active Ride Mode's party menu
+  /// never shows either of these two new items, since neither real call
+  /// site (`party_ready_screen.dart`, `waiting_room_screen.dart`) sets that
+  /// flag.
+  ///
+  /// `RideChatScreen` only takes `rideName` — it already carries its own
+  /// hardcoded mock roster (`_kMockOrganiserName`/`_kMockRiderNames`) for
+  /// its own "Report an Incident" header icon, so there's nothing from S9's
+  /// real roster to thread through here. Uses `push`, not `pushReplacement`
+  /// — unlike leaving, opening chat doesn't end this screen's WS/location
+  /// connection, so the party stays live underneath and the rider returns
+  /// to it via the normal back button.
+  void _openChat() {
+    Navigator.pop(context); // close the party menu
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => RideChatScreen(rideName: widget.rideName)),
+    );
+  }
+
+  /// Same roster-resolution pattern as [_leaveAndRateOrganiser] (self and
+  /// organiser excluded from `riders`, organiser passed separately so
+  /// `ReportIncidentScreen` can show it as a selectable, ORGANISER-badged
+  /// target per Decision 13's symmetric-reporting rule) — reused here
+  /// rather than re-derived, since it's the same "who's on this live ride"
+  /// question either flow needs answered. `push`, not `pushReplacement`,
+  /// for the same reason as [_openChat]: reporting an incident doesn't end
+  /// the rider's participation in the still-live party.
+  ///
+  /// `organiserName` is left `null` when the viewer *is* the organiser
+  /// (`organiserId == selfId`) — same "can't report yourself" rule
+  /// `ride_day_screen.dart`'s organiser-side entry point already follows —
+  /// rather than always resolving it whenever [LiveRideScreen.organiserId]
+  /// is non-null.
+  void _openReportIncident() {
+    Navigator.pop(context); // close the party menu
+    final organiserId = widget.organiserId;
+    final selfId = AuthSession.userId;
+    final organiserName =
+        (organiserId != null && organiserId != selfId) ? _nameFor(organiserId) : null;
+    final otherRiders = _liveRiderIds()
+        .where((id) => id != selfId && id != organiserId)
+        .map(_nameFor)
+        .toList();
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ReportIncidentScreen(
+          rideName: widget.rideName,
+          riders: otherRiders,
+          organiserName: organiserName,
+        ),
+      ),
+    );
+  }
+
   /// `party:ended` — the organiser tapped End Ride and the backend's
   /// `POST /parties/:id/end` succeeded (added 2026-08-17, closing
   /// process/build-status.md Next Steps item 30). Before this, a member
@@ -1224,7 +1288,27 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                 icon: const Icon(Icons.warning_amber_rounded, size: 18),
                 label: const Text('Simulate: Rider Emergency (demo)'),
               ),
-              const SizedBox(height: 10),
+              // Chat + Report an Incident — Community Mode only, per
+              // `product/decisions/13-incident-reporting.md`'s "Where it
+              // lives" gap. Gated the same way `_leaveParty`'s Leave Party
+              // branch already is (`widget.isCommunityRide`), so Active Ride
+              // Mode's party menu is provably unchanged: neither real
+              // `LiveRideScreen(...)` call site (`party_ready_screen.dart`,
+              // `waiting_room_screen.dart`) sets this flag.
+              if (widget.isCommunityRide) ...[
+                OutlinedButton.icon(
+                  onPressed: _openChat,
+                  icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                  label: const Text('Chat'),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: _openReportIncident,
+                  icon: const Icon(Icons.flag_outlined, size: 18),
+                  label: const Text('Report an Incident'),
+                ),
+                const SizedBox(height: 10),
+              ],
               if (widget.isOrganiser)
                 ElevatedButton.icon(
                   onPressed: _endRide,

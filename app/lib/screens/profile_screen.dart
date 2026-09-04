@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/colors.dart';
 import '../widgets/metallic_card.dart';
+import 'past_rides_screen.dart';
 import 'profile_creation_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -141,6 +142,25 @@ class ProfileScreen extends StatelessWidget {
                               _StatDivider(),
                               _StatItem(value: '0', label: 'No-shows'),
                             ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Entry point to S19d, "Past Rides (Report Access)" —
+                        // a new, separate link, deliberately not the ride-count
+                        // stat above (that stat stays inert per
+                        // `product/decisions/13-incident-reporting.md`'s
+                        // "New Scope Surfaced: Reporting After Leaving a Ride").
+                        // Own-profile only — not shown on `other_rider_profile_screen.dart`.
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const PastRidesScreen()),
+                            ),
+                            icon: const Icon(Icons.flag_outlined, size: 16),
+                            label: const Text('Report an Incident from a Past Ride'),
                           ),
                         ),
                         const SizedBox(height: 20),

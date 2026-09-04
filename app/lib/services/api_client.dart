@@ -1,14 +1,19 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 import '../config/app_config.dart';
 import 'api_exception.dart';
+import 'mock_backend.dart';
 
 /// Thin, shared REST helper — every real backend call in this app
 /// (auth_service.dart, party_service.dart, user_service.dart) goes through
 /// this rather than each calling `http.post`/`http.put` directly, so the
 /// error-envelope parsing (`{ error: { code, message } }`,
-/// api-design.md's "Error response shape") only lives in one place.
+/// api-design.md's "Error response shape") only lives in one place. This is
+/// also the single seam where the web build's self-contained demo mode
+/// plugs in (see `_send`'s `kIsWeb` guard) — iOS/Android never take that
+/// branch and keep hitting the real `backend/` exactly as before.
 class ApiClient {
   static const _uuid = Uuid();
   static const _timeout = Duration(seconds: 10);
@@ -69,6 +74,15 @@ class ApiClient {
     String? token,
     bool idempotent = false,
   }) async {
+    // Web-only demo swap: no publicly reachable backend exists for a
+    // GitHub Pages link to call (see current-implementation.md's "Web
+    // build" section), so the web target answers every call from the
+    // in-memory MockBackend instead of ever touching the network. Mobile
+    // (iOS/Android) never has kIsWeb true, so this never runs there.
+    if (kIsWeb) {
+      return MockBackend.handle(method, path, body);
+    }
+
     final uri = Uri.parse('${AppConfig.apiBaseUrl}$path');
     final headers = <String, String>{
       if (body != null) 'Content-Type': 'application/json',
