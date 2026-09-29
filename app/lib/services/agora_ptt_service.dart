@@ -2,16 +2,21 @@ import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../config/agora_config.dart';
+import 'api_exception.dart';
+import 'party_service.dart';
 
 /// Mirrors the PTT state machine in docs/technical/systems/ptt-audio.md.
 enum PttState { idle, transmitting, sendingEnd }
 
 /// Owns the Agora RtcEngine lifecycle for one live-ride PTT channel.
 ///
-/// This is a prototype: it joins the channel muted on [init]/[join] and
-/// toggles [startTalking]/[stopTalking] on hold/release. It does not emit
-/// ptt:started/ptt:ended events or play beeps — both depend on a WebSocket
-/// that doesn't exist yet (see docs/product/features/ptt-radio.md).
+/// Joins the channel muted on [init]/[join] and toggles
+/// [startTalking]/[stopTalking] on hold/release. Does not play audio-cue
+/// beeps itself — that's `live_ride_screen.dart`'s job, listening for the
+/// real `ptt:started`/`ptt:ended` WebSocket events (a separate relay, see
+/// `docs/technical/systems/ptt-audio.md`'s "Audio Cue Playback" section;
+/// this class only owns the actual Agora audio channel, still
+/// **unvalidated end-to-end** — see that doc's status line).
 class AgoraPttService {
   RtcEngine? _engine;
   bool _initialized = false;
@@ -72,6 +77,7 @@ class AgoraPttService {
             );
           },
           onError: (ErrorCodeType err, String msg) {
+            debugPrint('Agora: onError $err ($msg)');
             lastError.value = 'Agora error: $msg';
           },
           onConnectionStateChanged: (
@@ -79,6 +85,7 @@ class AgoraPttService {
             ConnectionStateType state,
             ConnectionChangedReasonType reason,
           ) {
+            debugPrint('Agora: connection state -> $state (reason: $reason)');
             if (state == ConnectionStateType.connectionStateFailed) {
               lastError.value = 'Lost connection to the PTT channel';
             }
@@ -97,14 +104,56 @@ class AgoraPttService {
     }
   }
 
-  Future<void> join() async {
+  /// Joins the real party's PTT channel. [partyId] is the party's real,
+  /// stable identifier (`live_ride_screen.dart`'s `widget.partyId`) — used
+  /// to fetch a channel-scoped Agora token from the backend
+  /// (`PartyService.fetchAgoraToken`, `POST /parties/:id/agora-token`)
+  /// before ever calling `joinChannel`.
+  ///
+  /// **Why this fetches a token at all**: found live 2026-09-16 (see
+  /// `docs/technical/systems/ptt-audio.md`'s "channel-join failure
+  /// root-caused" entry) — this Agora project has App Certificate enabled,
+  /// so the empty-string token this method used to send
+  /// (`AgoraConfig.tempToken`) was rejected outright by Agora's own servers
+  /// (`errInvalidToken`, 110). **User decision**: keep App Certificate ON
+  /// (the secure, production-appropriate setting — an open channel would let
+  /// anyone holding this app's App ID, which is not really secret, listen
+  /// into any ride's live PTT audio) rather than disable it, which means a
+  /// real signed token is now required for every join, minted server-side
+  /// per `services/agoraToken.ts`'s design (channel name = the party's real
+  /// room code, uid = 0, a few hours' expiry).
+  ///
+  /// The returned `channelName` (the party's real room code, resolved
+  /// server-side from [partyId] — never client-supplied) is used as the
+  /// Agora `channelId` here, replacing the old hardcoded
+  /// `AgoraConfig.channelName` mock-party-code constant.
+  ///
+  /// A token-fetch failure (network down, this rider genuinely isn't a
+  /// member of the party, the backend's Agora App Certificate isn't
+  /// configured yet) is caught and surfaced via [lastError] — same "don't
+  /// crash, tell the rider" pattern as every other failure path in this
+  /// class — rather than ever calling `joinChannel` with a missing/garbage
+  /// token.
+  Future<void> join(String partyId) async {
     final engine = _engine;
     if (engine == null || !_initialized) return;
+
+    final AgoraTokenResult tokenResult;
+    try {
+      tokenResult = await PartyService.fetchAgoraToken(partyId);
+    } on ApiException catch (e) {
+      lastError.value = 'Could not get permission to join the PTT channel: ${e.message}';
+      return;
+    } catch (e) {
+      lastError.value = 'Could not get permission to join the PTT channel: $e';
+      return;
+    }
+
     try {
       await engine.joinChannel(
-        token: AgoraConfig.tempToken,
-        channelId: AgoraConfig.channelName,
-        uid: 0,
+        token: tokenResult.token,
+        channelId: tokenResult.channelName,
+        uid: tokenResult.uid,
         options: const ChannelMediaOptions(
           clientRoleType: ClientRoleType.clientRoleBroadcaster,
           channelProfile: ChannelProfileType.channelProfileCommunication,

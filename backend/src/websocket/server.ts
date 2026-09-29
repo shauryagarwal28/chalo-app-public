@@ -47,18 +47,28 @@ export function createWebSocketServer(httpServer: HttpServer): WebSocketServer {
 
   wss.on('connection', (ws: WebSocket, req) => {
     let token: string | null = null;
+    // partyId (added 2026-09-17): which party's room this connection should
+    // be registered into — see websocket/types.ts's WsContext.partyId and
+    // partyPresence.ts's handlePartyConnect doc comment for the ambiguous
+    // room-registration bug this closes. Parsed the same permissive way as
+    // token below — a malformed/missing value just means "not party-scoped",
+    // not a connection failure (unlike a bad token, which does close the
+    // connection).
+    let partyId: string | null = null;
     try {
       // req.url is only the path+query (no scheme/host) on the underlying
       // http.IncomingMessage — the base below is a throwaway, only needed
       // because the URL constructor requires an absolute URL to parse from.
       const url = new URL(req.url ?? '', 'http://internal');
       token = url.searchParams.get('token');
+      partyId = url.searchParams.get('partyId');
     } catch {
       // Deliberately fall through to the "no token" branch below rather
       // than let a malformed req.url throw and crash the connection
       // handler — same "never let handshake-time parsing crash the
       // process" discipline as dispatchMessage.
       token = null;
+      partyId = null;
     }
 
     if (!token) {
@@ -89,6 +99,7 @@ export function createWebSocketServer(httpServer: HttpServer): WebSocketServer {
       ws: authedWs,
       userId: payload.userId,
       phoneNumber: payload.phoneNumber,
+      partyId,
     };
 
     // Task 5: if this user is a member of an active party, join its room

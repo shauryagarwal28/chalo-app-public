@@ -122,18 +122,6 @@ async function generateUniqueRoomCode(): Promise<string> {
 }
 
 /**
- * Task 5 addition: finds the partyId (if any) an authenticated userId is
- * currently a member of, so the WS layer can decide whether a freshly
- * authenticated connection should be added to a party's room registry.
- * There's no reverse userId -> partyId index documented anywhere (a user
- * is expected to be in at most one active party in MVP, but nothing
- * enforces that), so this scans `party:*:members` the same way
- * findPartyIdByRoomCode above scans `party:*:state` — same pattern, same
- * "fine at MVP scale" justification the room-code lookup already relies on.
- * Returns the first match if a user were somehow in more than one (not
- * expected, not guarded against elsewhere either).
- */
-/**
  * Task 6 senior review addition (2026-07-15): a direct, single-key
  * Redis-truth check for "is userId really a member of partyId", used by
  * websocket/location.ts as a fallback when the in-memory `partyRooms`
@@ -164,6 +152,38 @@ export async function getMemberName(partyId: string, userId: string): Promise<st
   return name ?? null;
 }
 
+/**
+ * Task 5 addition: finds *a* partyId an authenticated userId happens to be
+ * a member of, by scanning `party:*:members` the same way
+ * findPartyIdByRoomCode above scans `party:*:state` (same "fine at MVP
+ * scale" justification the room-code lookup already relies on).
+ *
+ * **No longer used by the WS connect path, as of 2026-09-17 — confirmed
+ * unsafe for that purpose, not just theoretically risky.** This was
+ * originally `handlePartyConnect`'s (websocket/partyPresence.ts) only way to
+ * decide which party's room registry a freshly authenticated connection
+ * should join. The doc comment here always said "returns the first match if
+ * a user were somehow in more than one (not expected, not guarded against
+ * elsewhere either)" — flagged as a real, not-yet-biting gap on 2026-08-18
+ * ("a user who's organiser of two simultaneously-open parties would get
+ * ambiguous WS room registration"), and confirmed live 2026-09-17: a user
+ * who creates a second party without ending the first (nothing in the
+ * product stops this) gets a **new** party's WS connection silently
+ * registered into the **wrong, older** party's room — this function has no
+ * way to know which of a user's several memberships the *connection* is
+ * actually for, because that was never asked of it. See
+ * process/build-status.md's "Organiser's own roster doesn't update" entry
+ * and partyPresence.ts's handlePartyConnect doc comment for the full story
+ * and the fix (the client now says which party it's connecting for on the
+ * handshake; the server verifies that specific claim via [isPartyMember]
+ * rather than guessing).
+ *
+ * Left in place — still correct for what it actually does ("does this user
+ * have *a* current party"), and still unused-but-harmless if a future
+ * caller needs exactly that and is prepared for the same multi-membership
+ * ambiguity this doc comment describes. Not currently called from
+ * anywhere in this backend.
+ */
 export async function findActivePartyIdForUser(userId: string): Promise<string | null> {
   const keys = await redisClient.keys('party:*:members');
   for (const key of keys) {
@@ -368,6 +388,33 @@ export async function getPartyDetail(
     maxRiders: state.maxRiders,
     members,
   };
+}
+
+/**
+ * Resolves the caller's party membership and the party's `roomCode` in one
+ * call, for `POST /parties/:id/agora-token` (routes/parties.ts, added
+ * 2026-09-16). The Agora *channel name* this app uses is the party's
+ * `roomCode` (e.g. `"RD7K2X"`), not `partyId` — see
+ * `services/agoraToken.ts`'s file-level doc comment for why — but the
+ * *membership* check still has to run against the real, stable `partyId`,
+ * same as every other party-scoped check in this file. Deliberately reuses
+ * `getPartyDetail`'s exact 404 PARTY_NOT_FOUND / 403 NOT_PARTY_MEMBER
+ * shape and mechanics (same `assertPartyExists` + `membersKey` hExists
+ * check) rather than inventing a third variant of "is this user a member of
+ * this party" — see that function's doc comment and
+ * `websocket/location.ts`'s `isMemberOfParty` for the other two places this
+ * same question is already answered.
+ */
+export async function getPartyRoomCodeForMember(partyId: string, userId: string): Promise<string> {
+  const state = await getPartyState(partyId);
+  assertPartyExists(state, partyId);
+
+  const isMember = await redisClient.hExists(membersKey(partyId), userId);
+  if (!isMember) {
+    throw new ApiError(403, 'NOT_PARTY_MEMBER', 'You are not a member of this party.');
+  }
+
+  return state.roomCode;
 }
 
 function assertPartyExists(state: PartyState | null, partyId: string): asserts state is PartyState {

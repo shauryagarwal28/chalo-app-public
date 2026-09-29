@@ -128,7 +128,7 @@ class _PartyReadyScreenState extends State<PartyReadyScreen> with SingleTickerPr
   /// `party:member_joined` listener as before — this only closes the gap
   /// for a join that raced the connection itself.
   Future<void> _connectAndBackstopRoster(String token) async {
-    await _locationWs.connect(token);
+    await _locationWs.connect(token, widget.partyId);
     if (!mounted) return;
     try {
       final detail = await PartyService.getPartyDetail(widget.partyId);

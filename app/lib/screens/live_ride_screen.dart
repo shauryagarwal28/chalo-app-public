@@ -193,7 +193,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
     // (e.g. no App ID configured yet), and the error listener needs a
     // fully-mounted context to show a SnackBar via ScaffoldMessenger.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _ptt.init().then((_) => _ptt.join());
+      _ptt.init().then((_) => _ptt.join(widget.partyId));
     });
 
     _locationWs.riderLocations.addListener(_onRiderDataChanged);
@@ -315,7 +315,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
       return;
     }
 
-    await _locationWs.connect(token);
+    await _locationWs.connect(token, widget.partyId);
 
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {

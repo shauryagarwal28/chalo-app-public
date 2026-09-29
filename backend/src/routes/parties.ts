@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/authenticate';
 import { idempotency } from '../middleware/idempotency';
 import * as partyService from '../services/party';
 import * as userService from '../services/user';
+import { generatePttToken } from '../services/agoraToken';
 import { MIN_MAX_RIDERS, MAX_MAX_RIDERS } from '../constants/party';
 import {
   broadcastPartyStarted,
@@ -199,5 +200,30 @@ partiesRouter.post('/parties/:id/end', authenticate, async (req, res) => {
 partiesRouter.get('/parties/:id', authenticate, async (req, res) => {
   const partyId = String(req.params.id);
   const result = await partyService.getPartyDetail(partyId, req.user!.userId);
+  res.status(200).json(result);
+});
+
+// POST /parties/:id/agora-token — protected, member-only (403
+// NOT_PARTY_MEMBER otherwise, 404 PARTY_NOT_FOUND if the party doesn't exist
+// at all — same error shape as GET /parties/:id above, since both reuse
+// partyService's shared membership-check mechanics).
+// -> { token: string, channelName: string, uid: number, expiresAt: string (ISO8601) }
+// 503 AGORA_NOT_CONFIGURED if the server's real Agora App Certificate isn't
+// set yet (services/agoraToken.ts) — a real, typed gap, not a crash, while
+// that value is retrieved separately (see config/env.ts's startup warning).
+//
+// Added 2026-09-16 to close the App-Certificate-enabled Agora channel-join
+// gap root-caused the same day (technical/systems/ptt-audio.md's dated
+// entry) — the user's decision was to keep App Certificate ON (secure,
+// production-appropriate) rather than disable it, which means every PTT
+// channel join now needs a real signed token instead of the empty string
+// `agora_ptt_service.dart` used to send. See services/agoraToken.ts's
+// file-level doc comment for the full design reasoning (channel name =
+// roomCode not partyId, uid = 0 "wildcard" matching the client's existing
+// `joinChannel(uid: 0)` call, 4h default expiry).
+partiesRouter.post('/parties/:id/agora-token', authenticate, async (req, res) => {
+  const partyId = String(req.params.id);
+  const roomCode = await partyService.getPartyRoomCodeForMember(partyId, req.user!.userId);
+  const result = generatePttToken(roomCode);
   res.status(200).json(result);
 });

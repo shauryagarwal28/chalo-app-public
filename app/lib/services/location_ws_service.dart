@@ -264,7 +264,24 @@ class LocationWsService {
   /// REST backstop fetch, called right after this resolves, is judged
   /// sufficient without also adding a fixed artificial delay here. Documented
   /// honestly rather than claimed as fully eliminated.
-  Future<void> connect(String accessToken) async {
+  ///
+  /// **[partyId] added 2026-09-17** (process/build-status.md's "Organiser's
+  /// own roster doesn't update" entry): this doc comment always described
+  /// this method as opening "the WS connection for [partyId]", but the
+  /// parameter never actually existed — the server used to *guess* which
+  /// party a freshly authenticated connection belonged to (an unscoped Redis
+  /// scan for any active party this user happens to be a member of,
+  /// `services/party.ts`'s `findActivePartyIdForUser`), which is ambiguous
+  /// the moment a user is a member of more than one still-open party at
+  /// once — confirmed live to silently register a fresh connection into the
+  /// *wrong* party's room, so this device's own roster stopped updating
+  /// while a different device (correctly registered) worked fine. Now sent
+  /// explicitly on the handshake query string, the same way every
+  /// `location:update` message already carries its own `partyId` rather than
+  /// making the server guess (`websocket/location.ts`) — see
+  /// `partyPresence.ts`'s `handlePartyConnect` doc comment for the server
+  /// side of this fix.
+  Future<void> connect(String accessToken, String partyId) async {
     if (_connected) return;
 
     if (kIsWeb) {
@@ -273,7 +290,9 @@ class LocationWsService {
       return;
     }
 
-    final uri = Uri.parse('${AppConfig.wsBaseUrl}?token=$accessToken');
+    final uri = Uri.parse(
+      '${AppConfig.wsBaseUrl}?token=$accessToken&partyId=$partyId',
+    );
     try {
       final channel = WebSocketChannel.connect(uri);
       _channel = channel;

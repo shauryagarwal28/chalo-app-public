@@ -6,6 +6,18 @@
 # secret, fine to keep in this file since it's meaningless outside a
 # throwaway local container) — production would inject a real one via actual
 # environment/secrets management, never this file.
+#
+# AGORA_APP_CERTIFICATE (added 2026-09-16, see src/config/env.ts) is a real
+# secret and can't be hardcoded here the way JWT_SECRET's dev value is —
+# `${AGORA_APP_CERTIFICATE:-}` below pulls it from a real `backend/.env` file
+# (gitignored, never committed — Compose itself reads `.env` for `${...}`
+# substitution in this file, separate from the Node app's own `dotenv`
+# load, which never sees inside this container at all — no bind mount
+# exposes `.env` to it). Defaults to empty if that file/var doesn't exist,
+# which is fine: env.ts warns at startup and the one endpoint that needs it
+# returns a typed 503 until it's set, nothing else in the backend depends on
+# it. Same applies to AGORA_APP_ID/AGORA_TOKEN_EXPIRY_SECONDS, included here
+# for override-ability even though env.ts ships working defaults for both.
 
 services:
   app:
@@ -17,6 +29,9 @@ services:
       - NODE_ENV=development
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=local-dev-only-jwt-secret-do-not-use-in-production
+      - AGORA_APP_ID=${AGORA_APP_ID:-}
+      - AGORA_APP_CERTIFICATE=${AGORA_APP_CERTIFICATE:-}
+      - AGORA_TOKEN_EXPIRY_SECONDS=${AGORA_TOKEN_EXPIRY_SECONDS:-}
     volumes:
       - ./src:/app/src
       - ./package.json:/app/package.json

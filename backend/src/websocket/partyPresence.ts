@@ -54,10 +54,50 @@ export function hasPendingRemoval(userId: string): boolean {
  * does NOT broadcast party:member_joined or send party:ready (see this
  * file's top-of-file note; those are REST-triggered from
  * routes/parties.ts's join handler now).
+ *
+ * **Fixed 2026-09-17 (process/build-status.md's "Organiser's own roster
+ * doesn't update" entry)**: this used to call `partyService.
+ * findActivePartyIdForUser(ctx.userId)` — an unscoped `KEYS party:*:members`
+ * scan that returns whichever active party this user happens to be a member
+ * of, discovered by Redis key iteration order, **not necessarily the party
+ * this connection is actually for**. Flagged as a real, not-yet-biting
+ * ambiguity on 2026-08-18 ("a user who's organiser of two simultaneously-open
+ * parties would get ambiguous WS room registration") and confirmed live
+ * 2026-09-17: a user who creates a second party without ending the first
+ * (an easy thing to do in normal repeated testing, and not something the
+ * product actually prevents — nothing requires an organiser to end a party
+ * before starting another) gets their **new** party's `party_ready_screen`
+ * WS connection silently registered into the **old** party's `partyRooms`
+ * entry instead. `broadcastToParty` for the real, current party then finds
+ * this user is not in the room and skips them — no error, no crash, the
+ * roster on their own screen just never updates, exactly the reported bug.
+ * The rider's own screen isn't affected only because `waiting_room_screen.dart`
+ * (the rider-side screen) shows the REST join response directly and never
+ * opens a live WS connection of its own at all — a separate, pre-existing
+ * gap, not something this fix touches.
+ *
+ * Fix: the WS handshake now carries the specific `partyId` the client is
+ * connecting for (see websocket/server.ts's handshake parsing and
+ * location_ws_service.dart's `connect()`), the same way every
+ * `location:update` message already carries its own `partyId` rather than
+ * having the server guess it (websocket/location.ts). The claim is never
+ * trusted blindly — `isPartyMember` (a direct, unambiguous single-key Redis
+ * check, already used by location.ts for the same reason) confirms it before
+ * this connection is added to that party's room. A connection with no
+ * `partyId` on the handshake, or one that fails the membership check, is
+ * treated exactly like "not a member of any active party" always was — no
+ * room registration, connection still works for everything else.
+ * `findActivePartyIdForUser` itself is untouched and still exists
+ * (services/party.ts) but is no longer used anywhere in this file, or
+ * anywhere in the backend as of this fix — see its own doc comment for why
+ * it's unsafe for this specific purpose.
  */
 export async function handlePartyConnect(ctx: WsContext): Promise<void> {
-  const partyId = await partyService.findActivePartyIdForUser(ctx.userId);
-  if (!partyId) return; // not a member of any active party — nothing to do
+  const partyId = ctx.partyId;
+  if (!partyId) return; // handshake didn't specify a party — nothing to do
+
+  const isMember = await partyService.isPartyMember(partyId, ctx.userId);
+  if (!isMember) return; // claimed party, but Redis doesn't agree — ignore, don't trust the client
 
   ctx.ws.partyId = partyId;
 

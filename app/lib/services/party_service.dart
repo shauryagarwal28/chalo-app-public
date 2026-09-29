@@ -18,6 +18,26 @@ class PartyMemberInfo {
   });
 }
 
+/// `POST /parties/:id/agora-token` response — a channel-scoped, short-lived
+/// Agora RTC token, per `technical/architecture/api-design.md`'s `parties`
+/// section (added 2026-09-16, see that doc's entry and
+/// `agora_ptt_service.dart`'s doc comment for the full story). [channelName]
+/// is the party's real room code (server-resolved, not client-supplied) —
+/// callers should use this, not any locally-known value, as the Agora
+/// `channelId` when joining.
+class AgoraTokenResult {
+  final String token;
+  final String channelName;
+  final int uid;
+  final DateTime expiresAt;
+  const AgoraTokenResult({
+    required this.token,
+    required this.channelName,
+    required this.uid,
+    required this.expiresAt,
+  });
+}
+
 class JoinPartyResult {
   final String partyId;
   final String rideName;
@@ -200,6 +220,31 @@ class PartyService {
       '/parties/$partyId/end',
       const {},
       token: _requireToken(),
+    );
+  }
+
+  /// `POST /parties/:id/agora-token` — member-only (403 `NOT_PARTY_MEMBER`
+  /// otherwise, 404 `PARTY_NOT_FOUND` if the party doesn't exist), 503
+  /// `AGORA_NOT_CONFIGURED` if the backend's real Agora App Certificate
+  /// isn't set yet — all surfaced as normal [ApiException]s, not
+  /// special-cased here. Called by `agora_ptt_service.dart`'s `join()`
+  /// before every real channel join; see that file's doc comment for why
+  /// this exists (the 2026-09-16 App-Certificate-enabled channel-join
+  /// failure) and for how a fetch failure here is surfaced to the rider
+  /// (via the same `lastError` pattern that file already uses for "no App
+  /// ID configured").
+  static Future<AgoraTokenResult> fetchAgoraToken(String partyId) async {
+    final json = await ApiClient.post(
+      '/parties/$partyId/agora-token',
+      const {},
+      token: _requireToken(),
+    );
+
+    return AgoraTokenResult(
+      token: json['token'] as String,
+      channelName: json['channelName'] as String,
+      uid: json['uid'] as int,
+      expiresAt: DateTime.parse(json['expiresAt'] as String),
     );
   }
 }

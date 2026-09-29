@@ -43,6 +43,15 @@ export interface WsContext {
   ws: AuthenticatedWebSocket;
   userId: string;
   phoneNumber: string;
+  // The partyId the client claimed on the WS handshake query string
+  // (`?token=...&partyId=...`), added 2026-09-17 — see
+  // partyPresence.ts's handlePartyConnect doc comment for the
+  // ambiguous-room-registration bug this closes. Never trusted blindly:
+  // handlePartyConnect verifies real Redis membership before using it for
+  // anything. Null if the client didn't send one (e.g. a future connection
+  // type that isn't party-scoped) — same "no active party" no-op as before
+  // this field existed.
+  partyId: string | null;
 }
 
 // The handler map every later task (5-8) plugs into: `handlers[type]` is
